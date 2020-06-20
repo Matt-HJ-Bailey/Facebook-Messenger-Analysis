@@ -38,12 +38,20 @@ SWEARWORDS = ("fuck", "shit", "piss", "cunt",
               "boaby", "dobber", "bawbag")
 
 def string_to_onlyalpha(string):
+    """
+    Get only alphanumeric characters from a string.
+    
+    Replace hyphens with spaces so as to not mangle hyphenated words, and replace apostrophes with blanks to merge words like it's -> its, othewise we lose the ts.
+    """
     string.replace("-", " ")
     string.replace("'", "")
     valids = re.sub(r"[^A-Za-z ]+", ' ', string)
     return valids.lower()
     
 def string_to_onlyascii(string):
+    """
+    Filter out emoji and non-printable characters.
+    """
     valids = [item for item in string if item.isascii() and item.isprintable()]
     return "".join(valids)
 
@@ -112,11 +120,19 @@ class FacebookMessage:
    
     @staticmethod
     def clean_content(content):
+        """
+        Strip whitespace from either side of the content.
+        """
         content = content.strip()
         return content
     
     @staticmethod
     def extract_reactions(bs_soup):
+        """
+        Extract reactions to this message.
+        
+        Returns a dict, keyed by reaction, with entries being a list of authors.
+        """
         sub_item = bs_soup.find("ul", class_=REACTION_CLASS)
         if sub_item is None:
             return {}
@@ -128,10 +144,14 @@ class FacebookMessage:
     
     def is_special_message(self):
         """
-        Return if this is a nickname or group chat name change
+        Return if this is a nickname or group chat name change.
+        
+        This is truly horrible, and misses a number of messages.
         """
         if not self.is_valid():
             return False
+            
+        # TODO: what if the author is wrong? then these don't match at all!
         for nickname in AUTHOR_TO_NICKNAME[self.author]:
         
             if self.content == f"{nickname} changed the chat theme.":
@@ -181,6 +201,9 @@ class FacebookMessage:
         return False
     
 def count_word_usage(counters_by_author, word_list):
+    """
+    Count each usage of a word in word_list, by author.
+    """
     specific_word_counter = {}
     for author in counters_by_author.keys():
         word_counter = Counter()
@@ -193,6 +216,9 @@ def count_word_usage(counters_by_author, word_list):
     return specific_word_counter
 
 def get_all_messages(filenames):
+    """
+    Turn a list of filenames into facebook messages.
+    """
     messages = []
     for filename in filenames:
         with open(filename, "r") as fi:
@@ -207,6 +233,9 @@ def get_all_messages(filenames):
     return messages
 
 def generate_activity_histogram(messages, filename):
+    """
+    Save a graph to filename of the times messages were sent.
+    """
     times = range(24)
     fig, ax = plt.subplots()
     ax.hist([message.time.hour for message in messages], times, density=True)
@@ -220,6 +249,9 @@ def generate_activity_histogram(messages, filename):
     plt.close(fig)
     
 def get_word_counts(messages_by_author):
+    """
+    Count all the unique words and the number of times they're used, by author.
+    """
     counters_by_author = {}
     for author in messages_by_author.keys():
         author_counter = Counter()

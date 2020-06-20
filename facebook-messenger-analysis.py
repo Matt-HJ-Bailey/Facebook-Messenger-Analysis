@@ -187,6 +187,7 @@ def count_word_usage(counters_by_author, word_list):
         for item in counters_by_author[author]:
             for word in word_list:
                 if word in item:
+                    print(item)
                     word_counter[word] += counters_by_author[author][item]
         specific_word_counter[author] = word_counter
     return specific_word_counter

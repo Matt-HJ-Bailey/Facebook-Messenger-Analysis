@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 import random
 
 
-AUTHOR_TO_NICKNAME = {"Matthew Collyer": ["You", "Matthew Collyer", "Latent Lesbian Vampirism"],
+AUTHOR_TO_NICKNAME = {"Matthew Collyer": ["You", "Matthew Collyer","Latent Lesbian Vampirism", "Mr Portuguese"],
                       "Anna Mowbray": ["You", "Anna Mowbray", "Spongey Maternal Fat Deposit"],
                       "Tim Wallis": ["You", "Tim Wallis", "Mad Spermatic Bubbles Endlessly Spilling out Kanye"],
-                      "Fraser Boistelle": ["You", "Fraser Boistelle", "One Second Late"],
+                      "Fraser Boistelle": ["You", "Fraser Boistelle", "One Second Late", "Wang Commander"],
                       "Sarah Goodenough": ["You", "Sarah Goodenough", "Ifishy that's even your real name"],
                       "Alastair Carr": ["You", "Alastair Carr", "Squint Dust"],
                       "Matt Bailey": ["You", "Matt Bailey", "A Subtle Facist"],
@@ -26,6 +26,15 @@ AUTHOR_TO_NICKNAME = {"Matthew Collyer": ["You", "Matthew Collyer", "Latent Lesb
                       "Oscar Arnstein": ["You", "Oscar Arnstein", "Spoon Twat"],
                       "Daisy Deller": ["You", "Daisy Deller"],
                       "Jay Alice": ["You", "Jay Alice", "Jasmine White"]}
+
+nickname_authors = list(set(author for author in AUTHOR_TO_NICKNAME.keys()))
+for author in AUTHOR_TO_NICKNAME.keys():
+    AUTHOR_TO_NICKNAME[author].extend(nickname_authors)
+    # Add their first name
+    AUTHOR_TO_NICKNAME[author].append(author.split()[0])
+    AUTHOR_TO_NICKNAME[author] = sorted(list(set(AUTHOR_TO_NICKNAME[author])))
+    
+print(AUTHOR_TO_NICKNAME)
                       
 MESSAGE_CLASS = "pam _3-95 _2pi0 _2lej uiBoxWhite noborder"
 AUTHOR_CLASS = "_3-96 _2pio _2lek _2lel"
@@ -48,6 +57,14 @@ def string_to_onlyalpha(string):
     valids = re.sub(r"[^A-Za-z ]+", ' ', string)
     return valids.lower()
     
+URL_REGEX = re.compile(r"(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})")
+def word_is_url(word):
+    """
+    Return if this word is a url or not
+    """
+    match = URL_REGEX.search(word)
+    return True if match is not None else False
+    
 def string_to_onlyascii(string):
     """
     Filter out emoji and non-printable characters.
@@ -64,6 +81,62 @@ def get_words(string):
     all_words = [item.strip() for item in string.split(" ") if item]
     all_words = [item for item in all_words if len(item) >= 2 or item in {"i", "a"}]
     return [item for item in all_words if not item.startswith("http") or not item.startswith("www")]
+    
+def is_clear_nickname(string, nickname):
+    """
+    Test if this is a nickname clearing message
+    """
+    if string.startswith(f"{nickname} cleared the nickname for "):
+        return True
+                
+    if string == f"{nickname} cleared his own nickname.":
+        return True
+            
+    if string == f"{nickname} cleared his own nickname.":
+        return True
+        
+    if string == f"{nickname} cleared your nickname.":
+        return True   
+    return False
+    
+def is_set_nickname(string, nickname):
+    """
+    Test if this is a nickname setting message
+    """
+    if string.startswith(f"{nickname} set the nickname for "):
+        return True
+
+    if string.startswith(f"{nickname} set his own nickname to"):
+        return True
+        
+    if string.startswith(f"{nickname} set her own nickname to"):
+        return True
+        
+    if string.startswith(f"{nickname} set your nickname to"):
+        return True 
+    return False
+    
+def is_add_remove_member(string, nickname):
+    """
+    Test if this message is adding or removing a member from the group.
+    """
+    if string.startswith(f"{nickname} added ") and string.endswith(" to the group."):
+        return True
+    
+    if string.startswith(f"{nickname} removed ") and string.endswith(" from the group."):
+        return True
+    return False
+    
+def is_create_group(string, nickname):
+    """
+    Test if this is a group creation message.
+    """
+    if string == f"{nickname} created the group.":
+        return True
+    return False
+    
+def is_poll_message(string, nickname):
+    return string == "This poll is no longer available"
 
 class FacebookMessage:
     def __init__(self, bs_soup):
@@ -124,7 +197,9 @@ class FacebookMessage:
         Strip whitespace from either side of the content.
         """
         content = content.strip()
-        return content
+        valid_words = content.split()
+        valid_words = [word for word in valid_words if not word_is_url(word)]
+        return " ".join(valid_words)
     
     @staticmethod
     def extract_reactions(bs_soup):
@@ -177,26 +252,28 @@ class FacebookMessage:
             
             if self.content.startswith(f"{nickname} set the emoji to"):
                 return True
-            
-            if self.content.startswith(f"{nickname} set the nickname for "):
-                return True
-    
+              
             if self.content == f"{nickname} changed the group photo.":
                 return True
             
-            if self.content.startswith(f"{nickname} added ") and self.content.endswith(" to the group."):
-                return True
-            
-            if self.content.startswith(f"{nickname} removed ") and self.content.endswith(" from the group."):
+            if is_add_remove_member(self.content, nickname):
                 return True
 
-            if self.content.startswith(f"{nickname} cleared the nickname for "):
+            if is_set_nickname(self.content, nickname):
                 return True
-            
+                
+            if is_clear_nickname(self.content, nickname):
+                return True
+                
+            if is_create_group(self.content, nickname):
+                return True
             if self.content == f"{nickname} started a video chat.":
                 return True
                 
             if self.content == f"{nickname} left the group.":
+                return True
+                
+            if is_poll_message(self.content, nickname):
                 return True
         return False
     
